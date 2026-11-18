@@ -8,9 +8,8 @@
   "comment_pt": "{oi} Sou designer e te mandei uma DM com o meu portfólio 🙂 {link}",
   "comment_en": "{oi} I'm a designer and just sent you a DM with my portfolio 🙂 {link}",
   "meu_usuario": "",
-  "max_idade_horas": 72,
-  "queries_por_rodada": 4,
-  "max_posts_por_rodada": 20,
+  "queries_por_rodada": 0,
+  "max_posts_por_rodada": 0,
   "queries_pt": [
     "procuro designer freelancer",
     "preciso de designer",
@@ -33,5 +32,10 @@
     "freelance product designer needed",
     "looking for a brand designer"
   ],
-  "models": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+  "models": [
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-20b"
+  ],
+  "fuso_horas": -3
 }
