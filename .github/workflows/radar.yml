@@ -2,7 +2,7 @@ name: Radar Freela
 
 on:
   schedule:
-    - cron: "0 11,17,23 * * *"   # 08h, 14h e 20h (Natal): busca posts novos no Threads
+    - cron: "59 2 * * *"          # 23:59 (Natal): busca os posts do dia no Threads
     - cron: "20 */3 * * *"       # a cada 3h: lê e responde seus comandos no Telegram
   workflow_dispatch:
     inputs:
@@ -33,7 +33,7 @@ jobs:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
           SCRAPECREATORS_API_KEY: ${{ secrets.SCRAPECREATORS_API_KEY }}
-          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '0 11,17,23 * * *' && 'full' || 'poll') }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '59 2 * * *' && 'full' || 'poll') }}
         run: |
           case "$MODE" in
             full) python bot.py ;;
