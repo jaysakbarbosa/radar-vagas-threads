@@ -1,0 +1,47 @@
+name: Radar Freela
+
+on:
+  schedule:
+    - cron: "0 11,17,23 * * *"   # 08h, 14h e 20h (Natal): busca posts novos no Threads
+    - cron: "20 */3 * * *"       # a cada 3h: lê e responde seus comandos no Telegram
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "full ou poll"
+        default: "full"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-freela
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Executar bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          SCRAPECREATORS_API_KEY: ${{ secrets.SCRAPECREATORS_API_KEY }}
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '0 11,17,23 * * *' && 'full' || 'poll') }}
+        run: |
+          case "$MODE" in
+            full) python bot.py ;;
+            *) python bot.py --poll ;;
+          esac
+      - name: Salvar estado
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "radar-bot@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || (git commit -m "atualiza estado" && git push)
