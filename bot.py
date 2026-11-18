@@ -33,6 +33,16 @@ GROQ_URL = os.environ.get("GROQ_URL", "https://api.groq.com/openai/v1/chat/compl
 META = os.environ.get("THREADS_GRAPH", "https://graph.threads.net/v1.0")
 SC_URL = os.environ.get("SC_URL", "https://api.scrapecreators.com/v1/threads/search")
 NOW = dt.datetime.now(dt.timezone.utc)
+TZ = dt.timezone(dt.timedelta(hours=CFG.get("fuso_horas", -3)))  # Natal: UTC-3, sem horário de verão
+
+
+def day_window():
+    """Dia local que está sendo coletado: de 00:00 a 24:00 no fuso de Natal.
+    Usa 'agora menos 1h' para que um atraso do GitHub depois da meia-noite ainda feche o dia certo."""
+    ref = NOW.astimezone(TZ) - dt.timedelta(minutes=60)
+    start = ref.replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + dt.timedelta(days=1)
+    return start.astimezone(dt.timezone.utc), min(end.astimezone(dt.timezone.utc), NOW), start.date()
 AREAS = {"grafico": "🎨 Gráfico", "uiux": "📱 UI/UX", "produto": "📦 Produto", "moveis": "🪑 Móveis", "motion": "🎬 Motion", "outro": "🎯 Design"}
 
 
@@ -136,12 +146,12 @@ def extract_posts(obj, out=None):
     return out
 
 
-def fetch(q):
+def fetch(q, since, until):
     tok = os.environ.get("THREADS_ACCESS_TOKEN")
     if tok:  # API oficial da Meta
         params = {
             "q": q, "search_type": "RECENT", "limit": 50, "access_token": tok,
-            "since": int(time.time() - CFG.get("max_idade_horas", 72) * 3600),
+            "since": int(since.timestamp()), "until": int(until.timestamp()),
             "fields": "id,text,permalink,timestamp,username,is_reply,is_quote_post",
         }
         res = http_json(f"{META}/keyword_search?{urllib.parse.urlencode(params)}")
@@ -162,7 +172,8 @@ def fetch(q):
 def pick_queries(st):
     pt, en = CFG["queries_pt"], CFG["queries_en"]
     qs = [x for pair in zip_longest(pt, en) for x in pair if x]
-    n = min(CFG.get("queries_por_rodada", 4), len(qs))
+    n = CFG.get("queries_por_rodada", 0)
+    n = len(qs) if not n else min(n, len(qs))  # 0 = todas as buscas
     i = st.get("cursor", 0) % len(qs)
     st["cursor"] = (i + n) % len(qs)
     return [qs[(i + k) % len(qs)] for k in range(n)]
@@ -212,8 +223,8 @@ def classify(posts):
     key = os.environ.get("GROQ_API_KEY")
     res = {}
     if key:
-        for i in range(0, len(posts), 5):
-            chunk = posts[i : i + 5]
+        for i in range(0, len(posts), 6):
+            chunk = posts[i : i + 6]
             lines = "\n".join(json.dumps({"n": k + 1, "user": p.get("user"), "text": p["text"][:500]}, ensure_ascii=False) for k, p in enumerate(chunk))
             for m in CFG["models"]:
                 if m in _BAD:
@@ -441,20 +452,20 @@ def main():
             return
 
     # busca
+    d0, d1, dia = day_window()
     raw = []
     if a.mock:
         raw = json.loads(Path(a.mock).read_text(encoding="utf-8"))
     else:
         for q in pick_queries(st):
             try:
-                got = fetch(q)
+                got = fetch(q, d0, d1)
                 print(f"'{q}': {len(got)} posts", file=sys.stderr)
                 raw.extend(got)
             except Exception as e:
                 print(f"'{q}' falhou: {e}", file=sys.stderr)
             time.sleep(1)
     me = (CFG.get("meu_usuario") or "").lower().lstrip("@")
-    limite = NOW - dt.timedelta(hours=CFG.get("max_idade_horas", 72))
     novos, vistos = [], set()
     urls = {v.get("url") for v in st["posts"].values() if v.get("url")}
     for p in raw:
@@ -464,7 +475,7 @@ def main():
         if p.get("url"):
             urls.add(p["url"])
         d = parse_ts(p.get("ts"))
-        if pid in st["seen"] or pid in vistos or p.get("is_reply") or (d and d < limite) or (me and (p.get("user") or "").lower() == me):
+        if pid in st["seen"] or pid in vistos or p.get("is_reply") or (d and not (d0 <= d <= d1)) or (me and (p.get("user") or "").lower() == me):
             continue
         vistos.add(pid)
         novos.append(p)
@@ -481,7 +492,8 @@ def main():
             "src": p.get("src"), "lang": "pt" if lang == "pt" else "en", "area": c.get("area") or "outro",
             "name": clean_name(c.get("name")), "summary": str(c.get("summary") or "")[:110], "status": "novo",
         })
-    found = found[: CFG.get("max_posts_por_rodada", 20)]
+    if CFG.get("max_posts_por_rodada"):
+        found = found[: CFG["max_posts_por_rodada"]]
     for p in found:
         p["id_n"] = st["next_id"]
         st["posts"][str(st["next_id"])] = p
@@ -492,8 +504,10 @@ def main():
     st["posts"] = {k: v for k, v in st["posts"].items() if (v.get("ts") or corte)[:10] >= corte or v["status"] == "novo"}
 
     msgs = []
-    if found:
-        msgs.append(f"📡 <b>Radar Freela</b> · {len(found)} post(s) procurando designer\n💋 BAFO! Achei, sis. A DM tá prontinha, é só colar e mandar! ✨")
+    if not found:
+        msgs.append(f"📡 <b>Radar Freela</b> · {dia:%d/%m/%Y}\nNenhum post novo de quem procura designer hoje, diva. Amanhã tem mais 💅")
+    else:
+        msgs.append(f"📡 <b>Radar Freela</b> · posts de {dia:%d/%m/%Y} · {len(found)} procurando designer\n💋 BAFO! O chá do dia chegou, sis. As DMs tão prontinhas, é só colar e mandar! ✨")
         msgs += [fmt_post(p) for p in found]
     for m_ in msgs:
         if a.dry_run:
@@ -503,7 +517,7 @@ def main():
             time.sleep(1)
     if not a.dry_run:
         save_state(st)
-    print(f"buscados={len(raw)} novos={len(novos)} para_voce={len(found)}", file=sys.stderr)
+    print(f"dia={dia} buscados={len(raw)} novos={len(novos)} para_voce={len(found)}", file=sys.stderr)
 
 
 if __name__ == "__main__":
