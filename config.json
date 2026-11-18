@@ -1,0 +1,37 @@
+{
+  "portfolio_pt": "https://graphics.bygustavomarques.com/",
+  "portfolio_en": "https://graphics.bygustavomarques.com/en/",
+  "oi_pt": "Opa",
+  "oi_en": "Hey",
+  "dm_pt": "{oi} Vi seu post sobre a vaga. Sou designer, aqui está o link do meu portfólio: {link}",
+  "dm_en": "{oi} I saw your post about the opening. I'm a designer, here's my portfolio: {link}",
+  "comment_pt": "{oi} Sou designer e te mandei uma DM com o meu portfólio 🙂 {link}",
+  "comment_en": "{oi} I'm a designer and just sent you a DM with my portfolio 🙂 {link}",
+  "meu_usuario": "",
+  "max_idade_horas": 72,
+  "queries_por_rodada": 4,
+  "max_posts_por_rodada": 20,
+  "queries_pt": [
+    "procuro designer freelancer",
+    "preciso de designer",
+    "preciso de um designer freela",
+    "busco designer para projeto",
+    "vaga freelancer designer",
+    "procuro motion designer",
+    "procuro designer UI UX",
+    "preciso de designer gráfico",
+    "procuro ilustrador freela",
+    "designer para social media freelancer"
+  ],
+  "queries_en": [
+    "looking for a freelance designer",
+    "hiring freelance designer",
+    "need a designer for a project",
+    "looking for freelance UI UX designer",
+    "hiring freelance motion designer",
+    "looking for a graphic designer freelance",
+    "freelance product designer needed",
+    "looking for a brand designer"
+  ],
+  "models": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+}
